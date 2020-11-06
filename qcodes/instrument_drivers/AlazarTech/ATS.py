@@ -47,7 +47,7 @@ class AlazarTech_ATS(Instrument):
 
     # override dll_path in your init script or in the board constructor
     # if you have it somewhere else
-    dll_path = 'C:\\WINDOWS\\System32\\ATSApi'
+    dll_path = '/usr/lib64/libATSApi.so'
 
     api: AlazarATSAPI
 
@@ -788,24 +788,19 @@ _setup_ctypes_for_windll_lib_functions()
 
 class Buffer:
     """Buffer suitable for DMA transfers.
-
     AlazarTech digitizers use direct memory access (DMA) to transfer
     data from digitizers to the computer's main memory. This class
     abstracts a memory buffer on the host, and ensures that all the
     requirements for DMA transfers are met.
-
     Buffer export a 'buffer' member, which is a NumPy array view
     of the underlying memory buffer
-
     Args:
         c_sample_type: The datatype of the buffer to create. Should be a valid
             ctypes type.
         size_bytes (int): The size of the buffer to allocate, in bytes.
     """
-
     def __init__(self, c_sample_type, size_bytes):
         self.size_bytes = size_bytes
-
         npSampleType = {
             ctypes.c_uint8: np.uint8,
             ctypes.c_uint16: np.uint16,
@@ -813,7 +808,6 @@ class Buffer:
             ctypes.c_int32: np.int32,
             ctypes.c_float: np.float32
         }.get(c_sample_type, 0)
-
         bytes_per_sample = {
             ctypes.c_uint8:  1,
             ctypes.c_uint16: 2,
@@ -821,7 +815,6 @@ class Buffer:
             ctypes.c_int32:  4,
             ctypes.c_float:  4
         }.get(c_sample_type, 0)
-
         self._allocated = True
         self.addr = None
         if os.name == 'nt':
@@ -829,15 +822,15 @@ class Buffer:
             PAGE_READWRITE = 0x4
             self.addr = ctypes.windll.kernel32.VirtualAlloc(
                 0, ctypes.c_long(size_bytes), MEM_COMMIT, PAGE_READWRITE)
+            ctypes_array = (c_sample_type *
+                            (size_bytes // bytes_per_sample)).from_address(self.addr)
         else:
-            self._allocated = False
-            raise Exception("Unsupported OS")
-
-        ctypes_array = (c_sample_type *
-                        (size_bytes // bytes_per_sample)).from_address(self.addr)
+            self._allocated = True
+            ctypes_array = (c_sample_type *
+                            (size_bytes // bytes_per_sample))()
+            self.addr = ctypes.addressof(ctypes_array)
         self.buffer = np.frombuffer(ctypes_array, dtype=npSampleType)
         self.ctypes_buffer = ctypes_array
-
     def free_mem(self):
         """
         uncommit memory allocated with this buffer object
@@ -848,8 +841,7 @@ class Buffer:
             ctypes.windll.kernel32.VirtualFree(
                 ctypes.c_void_p(self.addr), 0, MEM_RELEASE)
         else:
-            self._allocated = True
-            raise Exception("Unsupported OS")
+            pass
 
     def __del__(self):
         """

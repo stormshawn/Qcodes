@@ -8,11 +8,11 @@ class AlazarTech_ATS9440(AlazarTech_ATS):
     This class is the driver for the ATS9440 board
     it inherits from the ATS base class
     """
-    samples_divisor = 32
+    samples_divisor = 256
     channels = 4
 
     def __init__(self, name, **kwargs):
-        dll_path = 'C:\\WINDOWS\\System32\\ATSApi.dll'
+        dll_path = '/usr/lib64/libATSApi.so'
         super().__init__(name, dll_path=dll_path, **kwargs)
 
         # add parameters
